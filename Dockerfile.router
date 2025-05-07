@@ -1,0 +1,8 @@
+FROM ubuntu:22.04
+
+RUN apt update && apt install -y iproute2 iptables iputils-ping net-tools && apt clean
+
+COPY iptables.sh /iptables.sh
+RUN chmod +x /iptables.sh
+
+CMD ["/bin/bash", "/iptables.sh"]

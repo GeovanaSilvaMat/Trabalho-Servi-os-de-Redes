@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  router:
+    build:
+      context: .
+      dockerfile: Dockerfile.router
+    container_name: router
+    privileged: true
+    networks:
+      lan:
+        ipv4_address: 192.168.1.254
+      client_network:
+        ipv4_address: 192.168.2.254
+
+  dns:
+    image: andyshinn/dnsmasq:2.78
+    container_name: dns
+    command: --no-daemon
+    volumes:
+      - ./dnsmasq.conf:/etc/dnsmasq.conf
+    networks:
+      lan:
+        ipv4_address: 192.168.1.2
+
+  dhcp:
+    image: networkboot/dhcpd
+    container_name: dhcp
+    environment:
+      - INTERFACES=eth0
+    volumes:
+      - ./dhcpd.conf:/etc/dhcp/dhcpd.conf
+    networks:
+      lan:
+        ipv4_address: 192.168.1.3
+      client_network:
+        ipv4_address: 192.168.2.1
+    cap_add:
+      - NET_ADMIN
+  ldap:
+    image: osixia/openldap:1.5.0
+    container_name: ldap
+    environment:
+      - LDAP_ORGANISATION=SAEPE
+      - LDAP_DOMAIN=localhost
+      - LDAP_ADMIN_PASSWORD=admin123
+    networks:
+      lan:
+        ipv4_address: 192.168.1.4
+  
+  samba:
+    image: dperson/samba
+    container_name: samba
+    command: '-u "SAEPE;admin123" -s "compartilhado;/srv/samba;yes;no"'
+    volumes:
+      - ./samba:/srv/samba
+    networks:
+      lan:
+        ipv4_address: 192.168.1.5
+  ftp:
+    image: fauria/vsftpd
+    container_name: ftp
+    environment:
+      - FTP_USER=SAEPE
+      - FTP_PASS=admin123
+      - PASV_ADDRESS=192.168.1.6
+    ports:
+      - "20:20"
+      - "21:21"
+      - "21100-21110:21100-21110"
+    networks:
+      lan:
+        ipv4_address: 192.168.1.6
+
+  web:
+    image: nginx:alpine
+    container_name: web
+    volumes:
+      - ./html:/usr/share/nginx/html
+    networks:
+      lan:
+        ipv4_address: 192.168.1.10
+
+networks:
+  lan:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.1.0/24
+  client_network:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 192.168.2.0/24
+
